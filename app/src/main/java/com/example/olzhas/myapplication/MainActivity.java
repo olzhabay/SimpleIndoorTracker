@@ -1,5 +1,6 @@
 package com.example.olzhas.myapplication;
 
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -10,17 +11,19 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
+import android.util.Pair;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
-import android.widget.SimpleAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -29,7 +32,7 @@ public class MainActivity extends AppCompatActivity {
     SensorManager SM;
     WifiManager wifiManager;
     private LinkedList<float[]> data = new LinkedList<>();
-    ArrayList<HashMap<String, String>> wifiList = new ArrayList<>();
+    ArrayList<String> wifiList = new ArrayList<>();
     int samplingPeriodUs = 50000;
     double time = 3;
     double threshold = 0.1;
@@ -39,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
     Button buttonRecognize;
     Button buttonScan;
     int scanSize = 0;
-    SimpleAdapter adapter;
+    ArrayAdapter<String> adapter;
 
     String ITEM_KEY = "key";
     List<ScanResult> scanResults;
@@ -64,11 +67,23 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private BroadcastReceiver rssiReceiver = new BroadcastReceiver() {
+    private BroadcastReceiver wifiReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            Log.d("WifiScanner", "onReceive");
             scanResults = wifiManager.getScanResults();
             scanSize = scanResults.size();
+            Log.d("WifiScanner", "Scan result size=" + scanSize);
+            try {
+                while (scanSize > 0) {
+                    scanSize--;
+                    wifiList.add(scanResults.get(scanSize).SSID + " "
+                            + scanResults.get(scanSize).capabilities);
+                }
+            } catch (Exception e) {
+                Log.w("WifiScanner", "Exception: " + e);
+            }
+            adapter.notifyDataSetChanged();
         }
     };
 
@@ -85,6 +100,51 @@ public class MainActivity extends AppCompatActivity {
         listView = (ListView)findViewById(R.id.listView);
         buttonRecognize = (Button)findViewById(R.id.buttonRecognize);
         buttonScan = (Button)findViewById(R.id.buttonScan);
+        wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        if (!wifiManager.isWifiEnabled()) {
+            Toast.makeText(getApplicationContext(), "wifi is disabled... makinng it enable", Toast.LENGTH_LONG).show();
+            wifiManager.setWifiEnabled(true);
+        }
+        this.adapter = new ArrayAdapter<String>(this, R.layout.simple_list_item_1, wifiList);
+        listView.setAdapter(this.adapter);
+        ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.ACCESS_FINE_LOCATION }, 1);
+        ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
+        ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.ACCESS_NETWORK_STATE}, 1);
+        initButtons();
+        scanWifiNetworks();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(wifiReceiver);
+    }
+
+    private void scanWifiNetworks() {
+        wifiList.clear();
+        registerReceiver(wifiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+        wifiManager.startScan();
+        Log.d("WifiScanner", "scanWifiNetworks");
+        Toast.makeText(this, "Scanning...", Toast.LENGTH_SHORT).show();
+    }
+
+    private void initButtons() {
+
+        buttonScan.setOnClickListener(new Button.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                scanWifiNetworks();
+            }
+        });
+
         buttonRecognize.setOnClickListener(new Button.OnClickListener(){
             @Override
             public void onClick(View v) {
@@ -102,48 +162,5 @@ public class MainActivity extends AppCompatActivity {
                 textStatus.setText(result);
             }
         });
-        buttonScan.setOnClickListener(new Button.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                wifiList.clear();
-                wifiManager.startScan();
-                Toast.makeText(getApplicationContext(), "Scanning..." + scanSize, Toast.LENGTH_SHORT).show();
-                try {
-                    scanSize = scanSize - 1;
-                    while (scanSize >= 0) {
-                        HashMap<String, String> item = new HashMap<>();
-                        item.put(ITEM_KEY, scanResults.get(scanSize).SSID + " " + scanResults.get(scanSize).capabilities);
-                        wifiList.add(item);
-                        scanSize--;
-                        adapter.notifyDataSetChanged();
-                    }
-                } catch (Exception e) { }
-            }
-        });
-
-        wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        if (!wifiManager.isWifiEnabled()) {
-            Toast.makeText(getApplicationContext(), "wifi is disabled... makinng it enable", Toast.LENGTH_LONG).show();
-            wifiManager.setWifiEnabled(true);
-        }
-        adapter = new SimpleAdapter(
-                MainActivity.this,
-                wifiList,
-                R.layout.row,
-                new String[] { ITEM_KEY },
-                new int[] { R.id.list_value});
-        registerReceiver(rssiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-    }
-
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        unregisterReceiver(rssiReceiver);
     }
 }
