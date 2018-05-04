@@ -41,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     ListView listView;
     Button buttonRecognize;
     Button buttonScan;
+    Button buttonShowMap;
     int scanSize = 0;
     ArrayAdapter<String> adapter;
 
@@ -100,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
         listView = (ListView)findViewById(R.id.listView);
         buttonRecognize = (Button)findViewById(R.id.buttonRecognize);
         buttonScan = (Button)findViewById(R.id.buttonScan);
+        buttonShowMap = (Button)findViewById(R.id.buttonShowMap);
         wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         if (!wifiManager.isWifiEnabled()) {
             Toast.makeText(getApplicationContext(), "wifi is disabled... makinng it enable", Toast.LENGTH_LONG).show();
@@ -160,6 +162,13 @@ public class MainActivity extends AppCompatActivity {
                     result = "Not move\n";
                 }
                 textStatus.setText(result);
+            }
+        });
+
+        buttonShowMap.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, MapActivity.class));
             }
         });
     }
