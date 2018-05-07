@@ -31,22 +31,19 @@ public class MainActivity extends AppCompatActivity {
 
     SensorManager SM;
     WifiManager wifiManager;
+    private WifiReceiver wifiReceiver;
+    ArrayAdapter<String> adapter;
+    MapView mapView;
+    TextView textStatus;
+    Button buttonRecognize;
+    Button buttonScan;
+    Button buttonShowMap;
     private LinkedList<float[]> data = new LinkedList<>();
     ArrayList<String> wifiList = new ArrayList<>();
     int samplingPeriodUs = 50000;
     double time = 3;
     double threshold = 0.1;
     String result = "";
-    TextView textStatus;
-    ListView listView;
-    Button buttonRecognize;
-    Button buttonScan;
-    Button buttonShowMap;
-    int scanSize = 0;
-    ArrayAdapter<String> adapter;
-
-    String ITEM_KEY = "key";
-    List<ScanResult> scanResults;
 
     private SensorEventListener SEL = new SensorEventListener() {
         @Override
@@ -68,26 +65,6 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private BroadcastReceiver wifiReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d("WifiScanner", "onReceive");
-            scanResults = wifiManager.getScanResults();
-            scanSize = scanResults.size();
-            Log.d("WifiScanner", "Scan result size=" + scanSize);
-            try {
-                while (scanSize > 0) {
-                    scanSize--;
-                    wifiList.add(scanResults.get(scanSize).SSID + " "
-                            + scanResults.get(scanSize).capabilities);
-                }
-            } catch (Exception e) {
-                Log.w("WifiScanner", "Exception: " + e);
-            }
-            adapter.notifyDataSetChanged();
-        }
-    };
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -98,17 +75,17 @@ public class MainActivity extends AppCompatActivity {
         SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingPeriodUs);
 
         textStatus = (TextView)findViewById(R.id.textView);
-        listView = (ListView)findViewById(R.id.listView);
         buttonRecognize = (Button)findViewById(R.id.buttonRecognize);
         buttonScan = (Button)findViewById(R.id.buttonScan);
         buttonShowMap = (Button)findViewById(R.id.buttonShowMap);
         wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        wifiReceiver = new WifiReceiver(wifiManager);
+        mapView = (MapView) findViewById(R.id.mapView);
+        mapView.setImageResource(R.drawable.floormap);
         if (!wifiManager.isWifiEnabled()) {
             Toast.makeText(getApplicationContext(), "wifi is disabled... makinng it enable", Toast.LENGTH_LONG).show();
             wifiManager.setWifiEnabled(true);
         }
-        this.adapter = new ArrayAdapter<String>(this, R.layout.simple_list_item_1, wifiList);
-        listView.setAdapter(this.adapter);
         ActivityCompat.requestPermissions(this,
                 new String[]{Manifest.permission.ACCESS_FINE_LOCATION }, 1);
         ActivityCompat.requestPermissions(this,
@@ -165,11 +142,5 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        buttonShowMap.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, MapActivity.class));
-            }
-        });
     }
 }
