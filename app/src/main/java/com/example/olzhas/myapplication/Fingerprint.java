@@ -22,6 +22,12 @@ public class Fingerprint {
     private double x;
     private double y;
 
+    public Fingerprint() {
+        AUTOINCREMENT_ID++;
+        this.id = AUTOINCREMENT_ID;
+        this.measurements = new ArrayList<>();
+    }
+
     public Fingerprint(double x, double y, ArrayList<Measurement> measurements) {
         AUTOINCREMENT_ID++;
         this.id = AUTOINCREMENT_ID;

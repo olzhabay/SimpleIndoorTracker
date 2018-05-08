@@ -25,8 +25,7 @@
             android:id="@+id/mapView"
             android:layout_width="match_parent"
             android:layout_height="400dp"
-            android:scaleType="matrix"
-            android:src="@drawable/floormap" />
+            android:scaleType="matrix" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -34,22 +33,16 @@
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/buttonRecognize"
+                android:id="@+id/buttonTracking"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Recognize" />
+                android:text="Start trakcing" />
 
             <Button
                 android:id="@+id/buttonScan"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Scan" />
-
-            <Button
-                android:id="@+id/buttonShowMap"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Show Map"/>
+                android:text="Fingerprint" />
 
         </LinearLayout>
 
