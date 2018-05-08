@@ -8,15 +8,18 @@ import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.ContextMenu;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.PopupMenu;
 import android.widget.Toast;
 
 import com.qozix.tileview.TileView;
+import com.qozix.tileview.geom.CoordinateTranslater;
 import com.qozix.tileview.hotspots.HotSpot;
 import com.qozix.tileview.hotspots.HotSpotManager;
 import com.qozix.tileview.markers.MarkerLayout;
@@ -45,24 +48,30 @@ public class MapViewActivity extends TileViewActivity {
             public void onHotSpotTap(HotSpot hotSpot, int x, int y) {
                 Activity activity = (Activity) hotSpot.getTag();
                 Log.d("hotspottagged", "coordinates " + x + " " + y);
+                View view = new View(activity.getApplicationContext());
+                activity.addContentView(view, new ViewGroup.LayoutParams(40, 40));
+                PopupMenu popup = new PopupMenu (activity.getApplicationContext(), view, Gravity.CENTER);
+                popup.setOnMenuItemClickListener (new PopupMenu.OnMenuItemClickListener ()
+                {
+                    @Override
+                    public boolean onMenuItemClick (MenuItem item)
+                    {
+                        int id = item.getItemId();
+                        switch (id)
+                        {
+                            case R.id.menu_fingerprint:
+                                Log.d ("onMenuClick", "menu_fingerprint"); break;
+                            case R.id.menu_track:
+                                Log.d ("onMenuClick", "menu_track"); break;
+                        }
+                        return true;
+                    }
+                });
+                popup.getMenuInflater().inflate(R.menu.menu_layout, popup.getMenu());
+                popup.show();
             }
         });
         tileView.addHotSpot(hotSpot);
-
-//        tileView.setOnTouchListener(new View.OnTouchListener() {
-//            @Override
-//            public boolean onTouch(View v, MotionEvent event) {
-//                MapViewActivity.super.onTouchEvent(event);
-//                if (event.getAction() == MotionEvent.ACTION_DOWN) {
-//                    float x = event.getX();
-//                    float y = event.getY();
-//                    String msg = "coordinate : " + x + " / " + y;
-//                    Toast.makeText(MapViewActivity.this, msg, Toast.LENGTH_SHORT).show();
-//                    return true;
-//                }
-//                return false;
-//            }
-//        });
         registerForContextMenu(getTileView());
     }
 }
