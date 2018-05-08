@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_fingerprint"
+        android:title="Fingerprint"
+        android:visible="true"/>
+    <item
+        android:id="@+id/menu_track"
+        android:title="Start tracking"
+        android:visible="true"/>
+</menu>
