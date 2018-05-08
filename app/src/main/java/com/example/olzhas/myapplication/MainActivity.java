@@ -31,10 +31,10 @@ public class MainActivity extends AppCompatActivity {
     WifiManager wifiManager;
     private BroadcastReceiver wifiReceiver;
     private MapApplication mapApplication;
-    MapView mapView;
     TextView textStatus;
     Button buttonTracking;
     Button buttonScan;
+    Button buttonShowMap;
     private LinkedList<float[]> data = new LinkedList<>();
     int samplingPeriodUs = 50000;
     double time = 3;
@@ -73,8 +73,7 @@ public class MainActivity extends AppCompatActivity {
         textStatus = (TextView)findViewById(R.id.textView);
         buttonTracking = (Button)findViewById(R.id.buttonTracking);
         buttonScan = (Button)findViewById(R.id.buttonScan);
-        mapView = (MapView) findViewById(R.id.mapView);
-        mapView.loadMap(getResources(), R.drawable.floormap);
+        buttonShowMap = (Button)findViewById(R.id.buttonShowMap);
 
         // wifi
         wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -144,6 +143,14 @@ public class MainActivity extends AppCompatActivity {
                     result = "Not move\n";
                 }
                 textStatus.setText(result);
+            }
+        });
+
+        buttonShowMap.setOnClickListener(new Button.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, MapViewActivity.class);
+                startActivity(intent);
             }
         });
     }
