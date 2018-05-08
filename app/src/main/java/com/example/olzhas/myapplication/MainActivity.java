@@ -31,7 +31,6 @@ public class MainActivity extends AppCompatActivity {
     private MapApplication mapApplication;
     TextView textStatus;
     Button buttonTracking;
-    Button buttonScan;
     Button buttonShowMap;
     private LinkedList<float[]> data = new LinkedList<>();
     int samplingPeriodUs = 50000;
@@ -101,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 magnitude = magnitude/data.size();
                 if (magnitude > threshold) {
-                    result = "Move\n";
+                    result = "Move " + magnitude + "\n";
                 } else {
                     result = "Not move\n";
                 }

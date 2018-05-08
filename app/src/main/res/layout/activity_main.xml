@@ -37,13 +37,7 @@
                 android:id="@+id/buttonTracking"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Start trakcing" />
-
-            <Button
-                android:id="@+id/buttonScan"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Fingerprint" />
+                android:text="Start tracking" />
 
             <Button
                 android:id="@+id/buttonShowMap"

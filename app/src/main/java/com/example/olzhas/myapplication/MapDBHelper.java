@@ -103,7 +103,7 @@ public class MapDBHelper extends SQLiteOpenHelper {
                 ArrayList<Measurement> measurements = new ArrayList<>();
                 // get measurements
                 String MEASUREMENTS_SELECT = "SELECT * FROM " + Measurement.TABLE_NAME +
-                        " + WHERE " + Measurement.COLUMN_FINGERPRINT + " = " + id;
+                        " WHERE " + Measurement.COLUMN_FINGERPRINT + " = " + id;
                 Cursor measurementCursor = db.rawQuery(MEASUREMENTS_SELECT, null);
                 if (measurementCursor.moveToFirst()) {
                     do {

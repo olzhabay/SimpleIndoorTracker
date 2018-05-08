@@ -30,6 +30,8 @@ public class MapViewActivity extends TileViewActivity {
     private static int RIGHT = 5464;
     private static int BOTTOM = 0;
 
+    private final static double PX_PER_METER = 1314.69/50.1;
+
     MapApplication mapApplication;
     WifiManager wifiManager;
     private BroadcastReceiver wifiReceiver;
