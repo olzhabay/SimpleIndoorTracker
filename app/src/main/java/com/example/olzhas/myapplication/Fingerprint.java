@@ -10,7 +10,7 @@ public class Fingerprint {
 
     public static final String CREATE_TABLE =
             "CREATE TABLE " + TABLE_NAME + " ("
-                    + COLUMN_ID + " INTEGER PRIMARY KEY"
+                    + COLUMN_ID + " INTEGER PRIMARY KEY, "
                     + COLUMN_X + " FLOAT, "
                     + COLUMN_Y + " FLOAT"
                     + ")";
@@ -64,5 +64,10 @@ public class Fingerprint {
 
     public double getY() {
         return y;
+    }
+
+    public void setCoordinates(double x, double y) {
+        this.x = x;
+        this.y = y;
     }
 }

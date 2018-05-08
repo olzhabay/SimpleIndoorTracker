@@ -13,7 +13,7 @@ public class AccessPoint {
 
     public static final String CREATE_TABLE =
             "CREATE TABLE " + TABLE_NAME + " ("
-                    + COLUMN_ID + " INTEGER PRIMARY KEY"
+                    + COLUMN_ID + " INTEGER PRIMARY KEY, "
                     + COLUMN_BSSID + " TEXT, "
                     + COLUMN_SSID + " TEXT, "
                     + COLUMN_CAPABILITIES + " TEXT, "

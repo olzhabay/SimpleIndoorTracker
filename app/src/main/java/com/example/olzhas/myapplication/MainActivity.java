@@ -28,8 +28,6 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     SensorManager SM;
-    WifiManager wifiManager;
-    private BroadcastReceiver wifiReceiver;
     private MapApplication mapApplication;
     TextView textStatus;
     Button buttonTracking;
@@ -69,37 +67,16 @@ public class MainActivity extends AppCompatActivity {
         SM = (SensorManager)getSystemService(SENSOR_SERVICE);
         SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingPeriodUs);
 
+        // application
+        mapApplication = (MapApplication) getApplication();
+
         // gui views
         textStatus = (TextView)findViewById(R.id.textView);
         buttonTracking = (Button)findViewById(R.id.buttonTracking);
-        buttonScan = (Button)findViewById(R.id.buttonScan);
         buttonShowMap = (Button)findViewById(R.id.buttonShowMap);
 
-        // wifi
-        wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        wifiReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                registerScanResults(wifiManager.getScanResults());
-            }
-        };
-        registerReceiver(wifiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-
-        // Wifi set on
-        if (!wifiManager.isWifiEnabled()) {
-            Toast.makeText(getApplicationContext(), "wifi is disabled... Enabling", Toast.LENGTH_LONG).show();
-            wifiManager.setWifiEnabled(true);
-        }
-
-        // Permission ask
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.ACCESS_FINE_LOCATION }, 1);
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.ACCESS_NETWORK_STATE}, 1);
+        // buttons
         initButtons();
-        scanWifiNetworks();
     }
 
     @Override
@@ -110,23 +87,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unregisterReceiver(wifiReceiver);
-    }
-
-    private void scanWifiNetworks() {
-        Log.d("MainActivity", "(scanWifiNetworks) start");
-        wifiManager.startScan();
-        Toast.makeText(this, "Scanning...", Toast.LENGTH_SHORT).show();
     }
 
     private void initButtons() {
-
-        buttonScan.setOnClickListener(new Button.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                scanWifiNetworks();
-            }
-        });
 
         buttonTracking.setOnClickListener(new Button.OnClickListener(){
             @Override
@@ -155,34 +118,4 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    public void registerScanResults(List<ScanResult> results) {
-        Log.d("MainActivity", "(registerScanResults) Scan result size=" + results.size());
-        try {
-            Fingerprint fingerprint = new Fingerprint();
-            for (ScanResult scanResult : results) {
-                AccessPoint ap;
-                if (mapApplication.hasAccessPoint(scanResult.BSSID)) {
-                    ap = mapApplication.getAccessPoint(scanResult.BSSID);
-                } else {
-                    ap = new AccessPoint(
-                            scanResult.BSSID,
-                            scanResult.SSID,
-                            scanResult.capabilities,
-                            scanResult.level,
-                            scanResult.frequency);
-                    mapApplication.addAccessPoint(ap);
-                }
-                int signalLevel = WifiManager.calculateSignalLevel(scanResult.level, 5);
-                double distance = calculateDistance(scanResult.level, scanResult.frequency);
-                fingerprint.add(ap, distance, signalLevel);
-            }
-            mapApplication.addFingerprint(fingerprint);
-        } catch (Exception e) {
-            Log.w("MainActivity", "(registerScanResults) Exception: " + e);
-        }
-    }
-
-    public static double calculateDistance(double dbLevel, double mhzFrequency) {
-        return Math.pow(10, (27.55 - (20 * Math.log10(mhzFrequency)) + Math.abs(dbLevel)) / 20);
-    }
 }

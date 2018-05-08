@@ -17,7 +17,7 @@ class Measurement {
                     + COLUMN_FINGERPRINT + " INTEGER, "
                     + COLUMN_AP + " INTEGER, "
                     + COLUMN_DISTANCE + " FLOAT, "
-                    + COLUMN_LEVEL + " INTEGER, "
+                    + COLUMN_LEVEL + " INTEGER"
                     + ")";
 
     private static int AUTOINCREMENT_ID = 0;
