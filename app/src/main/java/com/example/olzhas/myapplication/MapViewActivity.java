@@ -22,6 +22,7 @@ import android.widget.Toast;
 import com.qozix.tileview.TileView;
 import com.qozix.tileview.hotspots.HotSpot;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MapViewActivity extends TileViewActivity {
@@ -131,22 +132,11 @@ public class MapViewActivity extends TileViewActivity {
             Log.d("MapViewActivity", "(registerFingerprint) Scan result size=" + results.size());
             Fingerprint fingerprint = new Fingerprint();
             fingerprint.setCoordinates(x, y);
-            for (ScanResult scanResult : results) {
-                AccessPoint ap;
-                if (mapApplication.hasAccessPoint(scanResult.BSSID)) {
-                    ap = mapApplication.getAccessPoint(scanResult.BSSID);
-                } else {
-                    ap = new AccessPoint(
-                            scanResult.BSSID,
-                            scanResult.SSID,
-                            scanResult.capabilities,
-                            scanResult.level,
-                            scanResult.frequency);
-                    mapApplication.addAccessPoint(ap);
-                }
-                int signalLevel = WifiManager.calculateSignalLevel(scanResult.level, 5);
-                double distance = calculateDistance(scanResult.level, scanResult.frequency);
-                fingerprint.add(ap, distance, signalLevel);
+            List<AccessPoint> accessPoints = getCurrentAccessPoints(scanResults);
+            for (AccessPoint accessPoint : accessPoints) {
+                int signalLevel = WifiManager.calculateSignalLevel(accessPoint.getLevel(), 5);
+                double distance = calculateDistance(accessPoint.getLevel(), accessPoint.getFrequency());
+                fingerprint.add(accessPoint, distance, signalLevel);
             }
             mapApplication.addFingerprint(fingerprint);
         } catch (Exception e) {
@@ -156,5 +146,25 @@ public class MapViewActivity extends TileViewActivity {
 
     public static double calculateDistance(double dbLevel, double mhzFrequency) {
         return Math.pow(10, (27.55 - (20 * Math.log10(mhzFrequency)) + Math.abs(dbLevel)) / 20);
+    }
+
+    private List<AccessPoint> getCurrentAccessPoints(List<ScanResult> scanResults) {
+        List<AccessPoint> accessPoints = new ArrayList<>();
+        for (ScanResult scanResult : scanResults) {
+            AccessPoint accessPoint;
+            if (mapApplication.hasAccessPoint(scanResult.BSSID)) {
+                accessPoint = mapApplication.getAccessPoint(scanResult.BSSID);
+            } else {
+                accessPoint = new AccessPoint(
+                        scanResult.BSSID,
+                        scanResult.SSID,
+                        scanResult.capabilities,
+                        scanResult.level,
+                        scanResult.frequency);
+                mapApplication.addAccessPoint(accessPoint);
+            }
+            accessPoints.add(accessPoint);
+        }
+        return accessPoints;
     }
 }
