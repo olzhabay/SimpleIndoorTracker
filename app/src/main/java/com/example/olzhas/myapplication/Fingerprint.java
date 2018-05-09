@@ -1,6 +1,7 @@
 package com.example.olzhas.myapplication;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class Fingerprint {
     public static String TABLE_NAME = "fingerprints";
@@ -18,17 +19,17 @@ public class Fingerprint {
     private static int AUTOINCREMENT_ID = 0;
 
     private int id;
-    private ArrayList<Measurement> measurements;
+    private HashMap<String, Measurement> measurements;
     private double x;
     private double y;
 
     public Fingerprint() {
         AUTOINCREMENT_ID++;
         this.id = AUTOINCREMENT_ID;
-        this.measurements = new ArrayList<>();
+        this.measurements = new HashMap<>();
     }
 
-    public Fingerprint(double x, double y, ArrayList<Measurement> measurements) {
+    public Fingerprint(double x, double y, HashMap<String, Measurement> measurements) {
         AUTOINCREMENT_ID++;
         this.id = AUTOINCREMENT_ID;
         this.x = x;
@@ -36,7 +37,7 @@ public class Fingerprint {
         this.measurements = measurements;
     }
 
-    public Fingerprint(int id, double x, double y, ArrayList<Measurement> measurements) {
+    public Fingerprint(int id, double x, double y, HashMap<String, Measurement> measurements) {
         this.id = id;
         this.x = x;
         this.y = y;
@@ -46,7 +47,7 @@ public class Fingerprint {
 
     public void add(AccessPoint accessPoint, double distance, int level) {
         Measurement measurement = new Measurement(accessPoint, distance, level);
-        measurements.add(measurement);
+        measurements.put(accessPoint.getBSSID(), measurement);
     }
 
 
@@ -54,7 +55,11 @@ public class Fingerprint {
         return id;
     }
 
-    public ArrayList<Measurement> getMeasurements() {
+    public Measurement getMeasurement(String BSSID) {
+        return measurements.get(BSSID);
+    }
+
+    public HashMap<String, Measurement> getMeasurements() {
         return measurements;
     }
 
@@ -69,5 +74,9 @@ public class Fingerprint {
     public void setCoordinates(double x, double y) {
         this.x = x;
         this.y = y;
+    }
+
+    public void setMeasurements(HashMap<String, Measurement> measurements) {
+        this.measurements = measurements;
     }
 }

@@ -7,7 +7,7 @@ class Measurement {
     public static String TABLE_NAME = "ap_measurements";
     public static String COLUMN_ID = "id";
     public static String COLUMN_FINGERPRINT = "fingerprint_id";
-    public static String COLUMN_AP = "access_point_id";
+    public static String COLUMN_AP_BSSID = "access_point_bssid";
     public static String COLUMN_DISTANCE = "distance";
     public static String COLUMN_LEVEL = "level";
 
@@ -15,7 +15,7 @@ class Measurement {
             "CREATE TABLE " + TABLE_NAME + " ("
                     + COLUMN_ID +  " INTEGER PRIMARY KEY, "
                     + COLUMN_FINGERPRINT + " INTEGER, "
-                    + COLUMN_AP + " INTEGER, "
+                    + COLUMN_AP_BSSID + " TEXT, "
                     + COLUMN_DISTANCE + " FLOAT, "
                     + COLUMN_LEVEL + " INTEGER"
                     + ")";

@@ -10,7 +10,7 @@ import java.util.Map;
 public class MapApplication extends Application {
 
     private ArrayList<Fingerprint> fingerprints;
-    private HashMap<Integer, AccessPoint> accessPoints;
+    private HashMap<String, AccessPoint> accessPoints;
     private MapDBHelper dbHelper;
 
     @Override
@@ -25,7 +25,7 @@ public class MapApplication extends Application {
         return fingerprints;
     }
 
-    public HashMap<Integer, AccessPoint> getAccessPoints() {
+    public HashMap<String, AccessPoint> getAccessPoints() {
         return accessPoints;
     }
 
@@ -37,26 +37,16 @@ public class MapApplication extends Application {
 
     public void addAccessPoint(AccessPoint accessPoint) {
         Log.d("MapApplication", "(addAccessPoint) new ap added " + accessPoint.getBSSID());
-        accessPoints.put(accessPoint.getId(), accessPoint);
+        accessPoints.put(accessPoint.getBSSID(), accessPoint);
         dbHelper.addAccessPoint(accessPoint);
     }
 
     public AccessPoint getAccessPoint(String BSSID) {
-        for (Map.Entry<Integer, AccessPoint> accessPoint : accessPoints.entrySet()) {
-            if (accessPoint.getValue().getBSSID().equals(BSSID)) {
-                return accessPoint.getValue();
-            }
-        }
-        return null;
+        return accessPoints.get(BSSID);
     }
 
     public boolean hasAccessPoint(String BSSID) {
-        for (Map.Entry<Integer, AccessPoint> accessPoint : accessPoints.entrySet()) {
-            if (accessPoint.getValue().getBSSID().equals(BSSID)) {
-                return true;
-            }
-        }
-        return false;
+        return accessPoints.containsKey(BSSID);
     }
 
     public void purge() {

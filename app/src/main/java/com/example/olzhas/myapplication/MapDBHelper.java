@@ -57,11 +57,12 @@ public class MapDBHelper extends SQLiteOpenHelper {
         fingerprintValues.put(Fingerprint.COLUMN_X, fingerprint.getX());
         fingerprintValues.put(Fingerprint.COLUMN_Y, fingerprint.getY());
         db.insert(Fingerprint.TABLE_NAME, null, fingerprintValues);
-        for (Measurement measurement : fingerprint.getMeasurements()) {
+        for (Map.Entry<String, Measurement> pair : fingerprint.getMeasurements().entrySet()) {
+            Measurement measurement = pair.getValue();
             ContentValues measurementValues = new ContentValues();
             measurementValues.put(Measurement.COLUMN_ID, measurement.getId());
             measurementValues.put(Measurement.COLUMN_FINGERPRINT, fingerprint.getId());
-            measurementValues.put(Measurement.COLUMN_AP, measurement.getAccessPoint().getId());
+            measurementValues.put(Measurement.COLUMN_AP_BSSID, measurement.getAccessPoint().getBSSID());
             measurementValues.put(Measurement.COLUMN_DISTANCE, measurement.getDistance());
             measurementValues.put(Measurement.COLUMN_LEVEL, measurement.getLevel());
             db.insert(Measurement.TABLE_NAME, null, measurementValues);
@@ -69,8 +70,8 @@ public class MapDBHelper extends SQLiteOpenHelper {
         db.close();
     }
 
-    public HashMap<Integer, AccessPoint> getAccessPoints() {
-        HashMap<Integer, AccessPoint> accessPoints = new HashMap<>();
+    public HashMap<String, AccessPoint> getAccessPoints() {
+        HashMap<String, AccessPoint> accessPoints = new HashMap<>();
         String ACCESSPOINTS_SELECT = "SELECT * FROM " + AccessPoint.TABLE_NAME;
         SQLiteDatabase db = this.getWritableDatabase();
         Cursor accesspointCursor = db.rawQuery(ACCESSPOINTS_SELECT, null);
@@ -83,14 +84,14 @@ public class MapDBHelper extends SQLiteOpenHelper {
                 int level = accesspointCursor.getInt(4);
                 int frequency = accesspointCursor.getInt(5);
                 AccessPoint accessPoint = new AccessPoint(id, bssid, ssid, capabilities, level, frequency);
-                accessPoints.put(id, accessPoint);
+                accessPoints.put(bssid, accessPoint);
             } while (accesspointCursor.moveToNext());
         }
         db.close();
         return accessPoints;
     }
 
-    public ArrayList<Fingerprint> getFingerprints(Map<Integer, AccessPoint> accessPoints) {
+    public ArrayList<Fingerprint> getFingerprints(Map<String, AccessPoint> accessPoints) {
         ArrayList<Fingerprint> fingerprints = new ArrayList<>();
         String FINGERPRINTS_SELECT = "SELECT * FROM " + Fingerprint.TABLE_NAME;
         SQLiteDatabase db = this.getWritableDatabase();
@@ -100,20 +101,21 @@ public class MapDBHelper extends SQLiteOpenHelper {
                 int id = fingerprintCursor.getInt(0);
                 Double x = fingerprintCursor.getDouble(1);
                 Double y = fingerprintCursor.getDouble(2);
-                ArrayList<Measurement> measurements = new ArrayList<>();
+                HashMap<String, Measurement> measurements = new HashMap<>();
                 // get measurements
                 String MEASUREMENTS_SELECT = "SELECT * FROM " + Measurement.TABLE_NAME +
                         " WHERE " + Measurement.COLUMN_FINGERPRINT + " = " + id;
                 Cursor measurementCursor = db.rawQuery(MEASUREMENTS_SELECT, null);
                 if (measurementCursor.moveToFirst()) {
                     do {
+                        AccessPoint ap = accessPoints.get(measurementCursor.getString(2));
                         Measurement measurement = new Measurement(
                                 measurementCursor.getInt(0),
-                                accessPoints.get(measurementCursor.getInt(2)),
+                                ap,
                                 measurementCursor.getDouble(3),
                                 measurementCursor.getInt(4)
                         );
-                        measurements.add(measurement);
+                        measurements.put(ap.getBSSID(), measurement);
                     } while (measurementCursor.moveToNext());
                 }
                 fingerprints.add(new Fingerprint(id, x, y, measurements));

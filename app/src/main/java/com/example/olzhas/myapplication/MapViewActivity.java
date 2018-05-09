@@ -11,9 +11,12 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
+import android.support.v7.util.SortedList;
 import android.util.Log;
+import android.util.Pair;
 import android.view.Gravity;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.PopupMenu;
@@ -23,7 +26,11 @@ import com.qozix.tileview.TileView;
 import com.qozix.tileview.hotspots.HotSpot;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
 
 public class MapViewActivity extends TileViewActivity {
     private static int LEFT = 0;
@@ -132,12 +139,7 @@ public class MapViewActivity extends TileViewActivity {
             Log.d("MapViewActivity", "(registerFingerprint) Scan result size=" + results.size());
             Fingerprint fingerprint = new Fingerprint();
             fingerprint.setCoordinates(x, y);
-            List<AccessPoint> accessPoints = getCurrentAccessPoints(scanResults);
-            for (AccessPoint accessPoint : accessPoints) {
-                int signalLevel = WifiManager.calculateSignalLevel(accessPoint.getLevel(), 5);
-                double distance = calculateDistance(accessPoint.getLevel(), accessPoint.getFrequency());
-                fingerprint.add(accessPoint, distance, signalLevel);
-            }
+            fingerprint.setMeasurements(calculateMeasurements(results));
             mapApplication.addFingerprint(fingerprint);
         } catch (Exception e) {
             Log.w("MapViewActivity", "(registerFingerprint) Exception: " + e);
@@ -147,6 +149,52 @@ public class MapViewActivity extends TileViewActivity {
     public static double calculateDistance(double dbLevel, double mhzFrequency) {
         return Math.pow(10, (27.55 - (20 * Math.log10(mhzFrequency)) + Math.abs(dbLevel)) / 20);
     }
+
+    private HashMap<String, Measurement> calculateMeasurements(List<ScanResult> results) {
+        List<AccessPoint> accessPoints = getCurrentAccessPoints(scanResults);
+        HashMap<String, Measurement> measurements = new HashMap<>();
+        for (AccessPoint accessPoint : accessPoints) {
+            int signalLevel = WifiManager.calculateSignalLevel(accessPoint.getLevel(), 5);
+            double distance = calculateDistance(accessPoint.getLevel(), accessPoint.getFrequency());
+            Measurement measurement = new Measurement(accessPoint, distance, signalLevel);
+            measurements.put(accessPoint.getBSSID(), measurement);
+        }
+        return measurements;
+    }
+
+    private Pair<Double, Double> calculateKNNCoordinate(HashMap<String, Measurement> currentMeasurements, int k) {
+        ArrayList<Fingerprint> fingerprints = mapApplication.getFingerprints();
+        ArrayList<Pair<Double, Fingerprint>> pairs = new ArrayList<>();
+        for (Fingerprint fingerprint : fingerprints) {
+            double score = 0.0;
+            for (Map.Entry<String, Measurement> entry : currentMeasurements.entrySet()) {
+                double diff = 0.0;
+                Measurement measurement = entry.getValue();
+                try {
+                    Measurement jMeasurement = fingerprint.getMeasurement(entry.getKey());
+                    diff += measurement.getDistance() - jMeasurement.getDistance();
+                } catch (Exception e) {
+                    // skip
+                }
+                score += Math.pow(diff, 2);
+            }
+            score = Math.sqrt(score) / fingerprints.size();
+            Pair<Double, Fingerprint> pair = new Pair<>(score, fingerprint);
+            pairs.add(pair);
+        }
+        pairs.sort((p1, p2) -> p1.first.compareTo(p2.first));
+        k = Math.min(k, pairs.size());
+        double x = 0.0;
+        double y = 0.0;
+        for (int i = 0; i < k; i++) {
+            x += pairs.get(i).second.getX();
+            y += pairs.get(i).second.getY();
+        }
+        x = x / k;
+        y = y / k;
+        return new Pair<>(x, y);
+    }
+
 
     private List<AccessPoint> getCurrentAccessPoints(List<ScanResult> scanResults) {
         List<AccessPoint> accessPoints = new ArrayList<>();
