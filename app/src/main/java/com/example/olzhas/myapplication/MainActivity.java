@@ -32,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
     TextView textStatus;
     Button buttonTracking;
     Button buttonShowMap;
+    Button buttonDeleteDB;
     private LinkedList<float[]> data = new LinkedList<>();
     int samplingPeriodUs = 50000;
     double time = 3;
@@ -64,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
 
         // accelerometer
         SM = (SensorManager)getSystemService(SENSOR_SERVICE);
-        SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingPeriodUs);
+        SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
 
         // application
         mapApplication = (MapApplication) getApplication();
@@ -73,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
         textStatus = (TextView)findViewById(R.id.textView);
         buttonTracking = (Button)findViewById(R.id.buttonTracking);
         buttonShowMap = (Button)findViewById(R.id.buttonShowMap);
+        buttonDeleteDB = (Button)findViewById(R.id.buttonDeleteDB);
 
         // buttons
         initButtons();
@@ -113,6 +115,14 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, MapViewActivity.class);
                 startActivity(intent);
+            }
+        });
+
+        buttonDeleteDB.setOnClickListener(new Button.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mapApplication.purge();
+                Toast.makeText(MainActivity.this, "Fingerprints Purged", Toast.LENGTH_LONG).show();
             }
         });
     }

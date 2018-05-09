@@ -45,6 +45,12 @@
                 android:layout_height="wrap_content"
                 android:text="Show Map"/>
 
+            <Button
+                android:id="@+id/buttonDeleteDB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Delete db"/>
+
         </LinearLayout>
 
     </LinearLayout>
