@@ -5,6 +5,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,7 +14,7 @@ import java.util.Map;
 // ref: https://www.androidhive.info/2011/11/android-sqlite-database-tutorial/
 
 public class MapDBHelper extends SQLiteOpenHelper {
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
     private static final String DATABASE_NAME = "fingerprint_db";
 
 
@@ -71,6 +72,7 @@ public class MapDBHelper extends SQLiteOpenHelper {
     }
 
     public HashMap<String, AccessPoint> getAccessPoints() {
+        Log.d("DB", "getAccessPoints");
         HashMap<String, AccessPoint> accessPoints = new HashMap<>();
         String ACCESSPOINTS_SELECT = "SELECT * FROM " + AccessPoint.TABLE_NAME;
         SQLiteDatabase db = this.getWritableDatabase();
@@ -92,6 +94,7 @@ public class MapDBHelper extends SQLiteOpenHelper {
     }
 
     public ArrayList<Fingerprint> getFingerprints(Map<String, AccessPoint> accessPoints) {
+        Log.d("DB", "getFingerprints");
         ArrayList<Fingerprint> fingerprints = new ArrayList<>();
         String FINGERPRINTS_SELECT = "SELECT * FROM " + Fingerprint.TABLE_NAME;
         SQLiteDatabase db = this.getWritableDatabase();

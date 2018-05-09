@@ -56,8 +56,8 @@ public class MapViewActivity extends TileViewActivity {
                 getTileView().moveMarker(positionMarker, currentPosition.first, currentPosition.second);
                 Log.d("trackingThread", " Coordinate " + currentPosition.toString());
             }
-            //This line will continuously call this Runnable with 1000 milliseconds gap
-            handler.postDelayed(locationUpdate, 1000);
+            //This line will continuously call this Runnable with 3000 milliseconds gap
+            handler.postDelayed(locationUpdate, 3000);
         }
     };
 
