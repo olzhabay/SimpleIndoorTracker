@@ -9,16 +9,15 @@ import android.content.IntentFilter;
 import android.graphics.Rect;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
-import android.support.v7.util.SortedList;
 import android.util.Log;
 import android.util.Pair;
-import android.view.Gravity;
-import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.Toast;
 
@@ -26,11 +25,9 @@ import com.qozix.tileview.TileView;
 import com.qozix.tileview.hotspots.HotSpot;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
 
 public class MapViewActivity extends TileViewActivity {
     private static int LEFT = 0;
@@ -39,15 +36,36 @@ public class MapViewActivity extends TileViewActivity {
     private static int BOTTOM = 0;
 
     private final static double PX_PER_METER = 1314.69/50.1;
+    private final static int KNN_VALUE = 6;
 
     MapApplication mapApplication;
     WifiManager wifiManager;
     private BroadcastReceiver wifiReceiver;
     List<ScanResult> scanResults;
+    Pair<Double, Double> currentPosition;
+    ImageView positionMarker;
+    boolean isTracking = false;
+
+    Handler handler = new Handler();
+    final Runnable locationUpdate = new Runnable() {
+        @Override
+        public void run() {
+            if (isTracking) {
+                wifiManager.startScan();
+                currentPosition = calculateKNNCoordinate(calculateMeasurements(scanResults), KNN_VALUE);
+                getTileView().moveMarker(positionMarker, currentPosition.first, currentPosition.second);
+                Log.d("trackingThread", " Coordinate " + currentPosition.toString());
+            }
+            //This line will continuously call this Runnable with 1000 milliseconds gap
+            handler.postDelayed(locationUpdate, 1000);
+        }
+    };
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         // Application
         mapApplication = (MapApplication) getApplication();
 
@@ -86,38 +104,39 @@ public class MapViewActivity extends TileViewActivity {
         HotSpot hotSpot = new HotSpot();
         hotSpot.setTag(this);
         hotSpot.set(new Rect(LEFT, BOTTOM, RIGHT, TOP));
-        hotSpot.setHotSpotTapListener(new HotSpot.HotSpotTapListener() {
-            @Override
-            public void onHotSpotTap(HotSpot hotSpot, final int x, final int y) {
-                Activity activity = (Activity) hotSpot.getTag();
-                Log.d("MapViewActivity", "(onHotSpotTap) coordinates " + x + " " + y);
-                View view = new View(activity.getApplicationContext());
-                activity.addContentView(view, new ViewGroup.LayoutParams(40, 40));
-                PopupMenu popup = new PopupMenu (activity.getApplicationContext(), view, Gravity.CENTER);
-                popup.setOnMenuItemClickListener (new PopupMenu.OnMenuItemClickListener ()
+        hotSpot.setHotSpotTapListener((hotspot, x, y) -> {
+            Activity activity = (Activity) hotspot.getTag();
+            Log.d("MapViewActivity", "(onHotSpotTap) coordinates " + x + " " + y);
+            View view = new View(activity.getApplicationContext());
+            activity.addContentView(view, new ViewGroup.LayoutParams(100, 100));
+            PopupMenu popup = new PopupMenu (activity.getApplicationContext(), view);
+            popup.setOnMenuItemClickListener (item -> {
+                int id = item.getItemId();
+                switch (id)
                 {
-                    @Override
-                    public boolean onMenuItemClick (MenuItem item)
-                    {
-                        int id = item.getItemId();
-                        switch (id)
-                        {
-                            case R.id.menu_fingerprint:
-                                Log.d ("onMenuClick", "menu_fingerprint");
-                                scanWifiNetworks(x, y);
-                                break;
-                            case R.id.menu_track:
-                                Log.d ("onMenuClick", "menu_track");
-                                break;
-                        }
-                        return true;
-                    }
-                });
-                popup.getMenuInflater().inflate(R.menu.menu_layout, popup.getMenu());
-                popup.show();
-            }
+                    case R.id.menu_fingerprint:
+                        Log.d ("onMenuClick", "menu_fingerprint");
+                        fingerprintPosition(x, y);
+                        break;
+                    case R.id.menu_track:
+                        Log.d ("onMenuClick", "menu_track");
+                        startTrackMode();
+                        break;
+                }
+                return true;
+            });
+            popup.getMenuInflater().inflate(R.menu.menu_layout, popup.getMenu());
+            popup.show();
         });
         tileView.addHotSpot(hotSpot);
+
+        // position init
+        currentPosition = new Pair<>(0.0, 0.0);
+        positionMarker = new ImageView(this);
+        positionMarker.setTag(currentPosition);
+        positionMarker.setImageResource(R.drawable.map_marker_normal);
+        tileView.addMarker(positionMarker, currentPosition.first, currentPosition.second, null, null);
+
         registerForContextMenu(getTileView());
     }
 
@@ -127,8 +146,25 @@ public class MapViewActivity extends TileViewActivity {
         unregisterReceiver(wifiReceiver);
     }
 
-    private void scanWifiNetworks(double x, double y) {
-        Log.d("MapViewActivity", "(scanWifiNetworks) start");
+    private void startTrackMode() {
+        if (isTracking) {
+            Toast.makeText(getApplicationContext(), "Tracking is OFF", Toast.LENGTH_SHORT).show();
+            isTracking = false;
+            try {
+                locationUpdate.wait();
+            } catch (Exception e) {
+                //
+                Log.d("startTrackMode", "Exception" + e);
+            }
+        } else {
+            Toast.makeText(getApplicationContext(), "Tracking is ON", Toast.LENGTH_SHORT).show();
+            isTracking = true;
+            locationUpdate.run();
+        }
+    }
+
+    private void fingerprintPosition(double x, double y) {
+        Log.d("MapViewActivity", "(fingerprintPosition) start");
         wifiManager.startScan();
         registerFingerprint(scanResults, x, y);
         Toast.makeText(this, "Scanning...", Toast.LENGTH_SHORT).show();
@@ -151,7 +187,7 @@ public class MapViewActivity extends TileViewActivity {
     }
 
     private HashMap<String, Measurement> calculateMeasurements(List<ScanResult> results) {
-        List<AccessPoint> accessPoints = getCurrentAccessPoints(scanResults);
+        List<AccessPoint> accessPoints = getCurrentAccessPoints(results);
         HashMap<String, Measurement> measurements = new HashMap<>();
         for (AccessPoint accessPoint : accessPoints) {
             int signalLevel = WifiManager.calculateSignalLevel(accessPoint.getLevel(), 5);
@@ -186,32 +222,38 @@ public class MapViewActivity extends TileViewActivity {
         k = Math.min(k, pairs.size());
         double x = 0.0;
         double y = 0.0;
-        for (int i = 0; i < k; i++) {
-            x += pairs.get(i).second.getX();
-            y += pairs.get(i).second.getY();
+        if (k > 0) {
+            for (int i = 0; i < k; i++) {
+                x += pairs.get(i).second.getX();
+                y += pairs.get(i).second.getY();
+            }
+            x = x / k;
+            y = y / k;
         }
-        x = x / k;
-        y = y / k;
         return new Pair<>(x, y);
     }
 
 
     private List<AccessPoint> getCurrentAccessPoints(List<ScanResult> scanResults) {
         List<AccessPoint> accessPoints = new ArrayList<>();
-        for (ScanResult scanResult : scanResults) {
-            AccessPoint accessPoint;
-            if (mapApplication.hasAccessPoint(scanResult.BSSID)) {
-                accessPoint = mapApplication.getAccessPoint(scanResult.BSSID);
-            } else {
-                accessPoint = new AccessPoint(
-                        scanResult.BSSID,
-                        scanResult.SSID,
-                        scanResult.capabilities,
-                        scanResult.level,
-                        scanResult.frequency);
-                mapApplication.addAccessPoint(accessPoint);
+        try {
+            for (ScanResult scanResult : scanResults) {
+                AccessPoint accessPoint;
+                if (mapApplication.hasAccessPoint(scanResult.BSSID)) {
+                    accessPoint = mapApplication.getAccessPoint(scanResult.BSSID);
+                } else {
+                    accessPoint = new AccessPoint(
+                            scanResult.BSSID,
+                            scanResult.SSID,
+                            scanResult.capabilities,
+                            scanResult.level,
+                            scanResult.frequency);
+                    mapApplication.addAccessPoint(accessPoint);
+                }
+                accessPoints.add(accessPoint);
             }
-            accessPoints.add(accessPoint);
+        } catch (Exception e) {
+            // skip
         }
         return accessPoints;
     }

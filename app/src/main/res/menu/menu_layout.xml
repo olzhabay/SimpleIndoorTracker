@@ -6,6 +6,6 @@
         android:visible="true"/>
     <item
         android:id="@+id/menu_track"
-        android:title="Start tracking"
+        android:title="Tracking mode"
         android:visible="true"/>
 </menu>

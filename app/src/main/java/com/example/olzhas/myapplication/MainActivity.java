@@ -92,38 +92,29 @@ public class MainActivity extends AppCompatActivity {
 
     private void initButtons() {
 
-        buttonTracking.setOnClickListener(new Button.OnClickListener(){
-            @Override
-            public void onClick(View v) {
-                double magnitude = 0;
-                for (int i = 0; i < data.size(); i++) {
-                    float[] temp = data.get(i);
-                    magnitude = Math.sqrt(temp[0]*temp[0] + temp[1]*temp[1] + temp[2]*temp[2]) - 9.8;
-                }
-                magnitude = magnitude/data.size();
-                if (magnitude > threshold) {
-                    result = "Move " + magnitude + "\n";
-                } else {
-                    result = "Not move\n";
-                }
-                textStatus.setText(result);
+        buttonTracking.setOnClickListener(v -> {
+            double magnitude = 0;
+            for (int i = 0; i < data.size(); i++) {
+                float[] temp = data.get(i);
+                magnitude = Math.sqrt(temp[0]*temp[0] + temp[1]*temp[1] + temp[2]*temp[2]) - 9.8;
             }
+            magnitude = magnitude/data.size();
+            if (magnitude > threshold) {
+                result = "Move " + magnitude + "\n";
+            } else {
+                result = "Not move\n";
+            }
+            textStatus.setText(result);
         });
 
-        buttonShowMap.setOnClickListener(new Button.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, MapViewActivity.class);
-                startActivity(intent);
-            }
+        buttonShowMap.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, MapViewActivity.class);
+            startActivity(intent);
         });
 
-        buttonDeleteDB.setOnClickListener(new Button.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mapApplication.purge();
-                Toast.makeText(MainActivity.this, "Fingerprints Purged", Toast.LENGTH_LONG).show();
-            }
+        buttonDeleteDB.setOnClickListener(v -> {
+            mapApplication.purge();
+            Toast.makeText(MainActivity.this, "Fingerprints Purged", Toast.LENGTH_LONG).show();
         });
     }
 
