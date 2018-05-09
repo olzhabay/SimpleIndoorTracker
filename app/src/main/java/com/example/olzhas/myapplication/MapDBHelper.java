@@ -76,18 +76,22 @@ public class MapDBHelper extends SQLiteOpenHelper {
         HashMap<String, AccessPoint> accessPoints = new HashMap<>();
         String ACCESSPOINTS_SELECT = "SELECT * FROM " + AccessPoint.TABLE_NAME;
         SQLiteDatabase db = this.getWritableDatabase();
-        Cursor accesspointCursor = db.rawQuery(ACCESSPOINTS_SELECT, null);
-        if (accesspointCursor.moveToFirst()) {
-            do {
-                int id = accesspointCursor.getInt(0);
-                String bssid = accesspointCursor.getString(1);
-                String ssid = accesspointCursor.getString(2);
-                String capabilities = accesspointCursor.getString(3);
-                int level = accesspointCursor.getInt(4);
-                int frequency = accesspointCursor.getInt(5);
-                AccessPoint accessPoint = new AccessPoint(id, bssid, ssid, capabilities, level, frequency);
-                accessPoints.put(bssid, accessPoint);
-            } while (accesspointCursor.moveToNext());
+        Cursor cursor = db.rawQuery("select DISTINCT tbl_name from sqlite_master where tbl_name = '"
+                + AccessPoint.TABLE_NAME + "'", null);
+        if (cursor != null && cursor.getCount() > 0) {
+            Cursor accesspointCursor = db.rawQuery(ACCESSPOINTS_SELECT, null);
+            if (accesspointCursor.moveToFirst()) {
+                do {
+                    int id = accesspointCursor.getInt(0);
+                    String bssid = accesspointCursor.getString(1);
+                    String ssid = accesspointCursor.getString(2);
+                    String capabilities = accesspointCursor.getString(3);
+                    int level = accesspointCursor.getInt(4);
+                    int frequency = accesspointCursor.getInt(5);
+                    AccessPoint accessPoint = new AccessPoint(id, bssid, ssid, capabilities, level, frequency);
+                    accessPoints.put(bssid, accessPoint);
+                } while (accesspointCursor.moveToNext());
+            }
         }
         db.close();
         return accessPoints;
@@ -98,31 +102,35 @@ public class MapDBHelper extends SQLiteOpenHelper {
         ArrayList<Fingerprint> fingerprints = new ArrayList<>();
         String FINGERPRINTS_SELECT = "SELECT * FROM " + Fingerprint.TABLE_NAME;
         SQLiteDatabase db = this.getWritableDatabase();
-        Cursor fingerprintCursor = db.rawQuery(FINGERPRINTS_SELECT, null);
-        if (fingerprintCursor.moveToFirst()) {
-            do {
-                int id = fingerprintCursor.getInt(0);
-                Double x = fingerprintCursor.getDouble(1);
-                Double y = fingerprintCursor.getDouble(2);
-                HashMap<String, Measurement> measurements = new HashMap<>();
-                // get measurements
-                String MEASUREMENTS_SELECT = "SELECT * FROM " + Measurement.TABLE_NAME +
-                        " WHERE " + Measurement.COLUMN_FINGERPRINT + " = " + id;
-                Cursor measurementCursor = db.rawQuery(MEASUREMENTS_SELECT, null);
-                if (measurementCursor.moveToFirst()) {
-                    do {
-                        AccessPoint ap = accessPoints.get(measurementCursor.getString(2));
-                        Measurement measurement = new Measurement(
-                                measurementCursor.getInt(0),
-                                ap,
-                                measurementCursor.getDouble(3),
-                                measurementCursor.getInt(4)
-                        );
-                        measurements.put(ap.getBSSID(), measurement);
-                    } while (measurementCursor.moveToNext());
-                }
-                fingerprints.add(new Fingerprint(id, x, y, measurements));
-            } while (fingerprintCursor.moveToNext());
+        Cursor cursor = db.rawQuery("select DISTINCT tbl_name from sqlite_master where tbl_name = '"
+                + Fingerprint.TABLE_NAME + "'", null);
+        if (cursor != null && cursor.getCount() > 0) {
+            Cursor fingerprintCursor = db.rawQuery(FINGERPRINTS_SELECT, null);
+            if (fingerprintCursor.moveToFirst()) {
+                do {
+                    int id = fingerprintCursor.getInt(0);
+                    Double x = fingerprintCursor.getDouble(1);
+                    Double y = fingerprintCursor.getDouble(2);
+                    HashMap<String, Measurement> measurements = new HashMap<>();
+                    // get measurements
+                    String MEASUREMENTS_SELECT = "SELECT * FROM " + Measurement.TABLE_NAME +
+                            " WHERE " + Measurement.COLUMN_FINGERPRINT + " = " + id;
+                    Cursor measurementCursor = db.rawQuery(MEASUREMENTS_SELECT, null);
+                    if (measurementCursor.moveToFirst()) {
+                        do {
+                            AccessPoint ap = accessPoints.get(measurementCursor.getString(2));
+                            Measurement measurement = new Measurement(
+                                    measurementCursor.getInt(0),
+                                    ap,
+                                    measurementCursor.getDouble(3),
+                                    measurementCursor.getInt(4)
+                            );
+                            measurements.put(ap.getBSSID(), measurement);
+                        } while (measurementCursor.moveToNext());
+                    }
+                    fingerprints.add(new Fingerprint(id, x, y, measurements));
+                } while (fingerprintCursor.moveToNext());
+            }
         }
         db.close();
         return fingerprints;
