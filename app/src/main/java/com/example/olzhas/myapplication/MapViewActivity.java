@@ -7,6 +7,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Rect;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
@@ -26,6 +30,7 @@ import com.qozix.tileview.hotspots.HotSpot;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -44,7 +49,49 @@ public class MapViewActivity extends TileViewActivity {
     List<ScanResult> scanResults;
     Pair<Double, Double> currentPosition;
     ImageView positionMarker;
+    SensorManager SM;
     boolean isTracking = false;
+    private LinkedList<float[]> data = new LinkedList<>();
+
+    private float[] mGravity = new float[3];
+    private float[] mGeomagnetic = new float[3];
+    private float[] R_ = new float[9];
+    private float[] I_ = new float[9];
+    private float azimuth;
+
+    private SensorEventListener SEL = new SensorEventListener() {
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            final float alpha = 0.97f;
+            synchronized (this) {
+                switch (event.sensor.getType()) {
+                    case Sensor.TYPE_ACCELEROMETER:
+                        mGravity[0] = alpha * mGravity[0] + (1 - alpha) * event.values[0];
+                        mGravity[1] = alpha * mGravity[1] + (1 - alpha) * event.values[1];
+                        mGravity[2] = alpha * mGravity[2] + (1 - alpha) * event.values[2];
+                        break;
+                    case Sensor.TYPE_MAGNETIC_FIELD:
+                        mGeomagnetic[0] = alpha * mGeomagnetic[0] + (1 - alpha) * event.values[0];
+                        mGeomagnetic[1] = alpha * mGeomagnetic[1] + (1 - alpha) * event.values[1];
+                        mGeomagnetic[2] = alpha * mGeomagnetic[2] + (1 - alpha) * event.values[2];
+                        break;
+                }
+                boolean success = SensorManager.getRotationMatrix(R_, I_, mGravity, mGeomagnetic);
+                if (success) {
+                    float orientation[] = new float[3];
+                    SensorManager.getOrientation(R_, orientation);
+                    azimuth = (float) Math.toDegrees(orientation[0]);
+                    azimuth = azimuth  % 360;
+                    Log.d("Compass", "Azimuth = " + azimuth);
+                }
+            }
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+        }
+    };
 
     Handler handler = new Handler();
     final Runnable locationUpdate = new Runnable() {
@@ -68,6 +115,12 @@ public class MapViewActivity extends TileViewActivity {
 
         // Application
         mapApplication = (MapApplication) getApplication();
+
+        // accelerometer
+        SM = (SensorManager)getSystemService(SENSOR_SERVICE);
+        SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_GAME);
+        SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_GAME);
+
 
         // wifi
         wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
