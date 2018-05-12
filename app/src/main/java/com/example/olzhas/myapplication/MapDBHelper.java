@@ -119,6 +119,7 @@ public class MapDBHelper extends SQLiteOpenHelper {
                     if (measurementCursor.moveToFirst()) {
                         do {
                             AccessPoint ap = accessPoints.get(measurementCursor.getString(2));
+                            if (ap == null) continue;
                             Measurement measurement = new Measurement(
                                     measurementCursor.getInt(0),
                                     ap,
@@ -141,6 +142,7 @@ public class MapDBHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS " + AccessPoint.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + Fingerprint.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + Measurement.TABLE_NAME);
+        onCreate(db);
         db.close();
     }
 }

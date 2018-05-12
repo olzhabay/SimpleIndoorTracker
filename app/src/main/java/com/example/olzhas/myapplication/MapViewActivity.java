@@ -43,14 +43,15 @@ public class MapViewActivity extends TileViewActivity {
     private static int HEIGHT = 2527;
 
     private final static double PX_PER_METER = 1314.69/50.1;
-    private final static double PX_PER_STEP = 0.8 * PX_PER_METER;
-    private final static int KNN_VALUE = 4;
+    private final static double PX_PER_STEP = 0.9 * PX_PER_METER;
+    private final static int KNN_VALUE = 3;
 
     MapApplication mapApplication;
     WifiManager wifiManager;
     private BroadcastReceiver wifiReceiver;
     List<ScanResult> scanResults;
     Position currentPosition;
+    Position fingerprintedPosition;
     ImageView positionMarker;
     SensorManager SM;
     boolean isTracking = false;
@@ -60,7 +61,7 @@ public class MapViewActivity extends TileViewActivity {
     private SensorEventListener SEL = new SensorEventListener() {
 
         private AccelerometerFilter filter = new AccelerometerFilter();
-        private static final float STEP_THRESHOLD = 50f;
+        private static final float STEP_THRESHOLD = 20f;
         private static final int STEP_DELAY_NS = 250000000;
         private long lastStepTimeNs = 0;
         private float prevEstimatedSpeed = 0;
@@ -73,7 +74,7 @@ public class MapViewActivity extends TileViewActivity {
 
         @Override
         public void onSensorChanged(SensorEvent event) {
-            final float alpha = 0.97f;
+            final float alpha = 0.8f;
             synchronized (this) {
                 switch (event.sensor.getType()) {
                     case Sensor.TYPE_ACCELEROMETER:
@@ -87,12 +88,16 @@ public class MapViewActivity extends TileViewActivity {
                         mGeomagnetic[1] = alpha * mGeomagnetic[1] + (1 - alpha) * event.values[1];
                         mGeomagnetic[2] = alpha * mGeomagnetic[2] + (1 - alpha) * event.values[2];
                         break;
+//                    case Sensor.TYPE_STEP_DETECTOR:
+//                        if (event.values[0] == 1.0f) {
+//                            step();
+//                        }
                 }
                 boolean success = SensorManager.getRotationMatrix(R_, I_, mGravity, mGeomagnetic);
                 if (success) {
                     float orientation[] = new float[3];
                     SensorManager.getOrientation(R_, orientation);
-                    setDirection((float) Math.toDegrees(orientation[0]) % 360);
+                    setDirection((float)(Math.toDegrees(orientation[0])+360)%360);
                 }
 
             }
@@ -103,13 +108,13 @@ public class MapViewActivity extends TileViewActivity {
         }
 
         void updateSpeed(long time, float[] currentAccel) {
-
             float estimatedSpeed =  filter.estimateVelocity(currentAccel);
 
             if (estimatedSpeed > STEP_THRESHOLD && prevEstimatedSpeed <= STEP_THRESHOLD
                     && (time - lastStepTimeNs > STEP_DELAY_NS)) {
                 step();
                 lastStepTimeNs = time;
+                Log.d("UpdateSpeed", "step");
             }
             prevEstimatedSpeed = estimatedSpeed;
         }
@@ -121,12 +126,15 @@ public class MapViewActivity extends TileViewActivity {
         public void run() {
             if (isTracking) {
                 wifiManager.startScan();
-                Pair<Double, Double> nextCoordinate = calculateKNNCoordinate(calculateMeasurements(scanResults), KNN_VALUE);
-                changePosition(nextCoordinate.first, nextCoordinate.second);
+                Pair<Double, Double> knnCoordinate = calculateKNNCoordinate(calculateMeasurements(scanResults), KNN_VALUE);
+                if (knnCoordinate.first != fingerprintedPosition.getX() || knnCoordinate.second != fingerprintedPosition.getY()) {
+                    fingerprintedPosition.move(knnCoordinate);
+                    calibratePosition();
+                }
                 Log.d("trackingThread", " Coordinate " + currentPosition.toString());
             }
-            //This line will continuously call this Runnable with 3000 milliseconds gap
-            handler.postDelayed(locationUpdate, 3000);
+            //This line will continuously call this Runnable with delay gap
+            handler.postDelayed(locationUpdate, 2000);
         }
     };
 
@@ -140,8 +148,9 @@ public class MapViewActivity extends TileViewActivity {
 
         // accelerometer
         SM = (SensorManager)getSystemService(SENSOR_SERVICE);
-        SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_GAME);
-        SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_GAME);
+        SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
+        SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_NORMAL);
+//        SM.registerListener(SEL, SM.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR), SensorManager.SENSOR_DELAY_NORMAL);
 
 
         // wifi
@@ -210,6 +219,7 @@ public class MapViewActivity extends TileViewActivity {
 
         // position init
         currentPosition = new Position(0.0, 0.0);
+        fingerprintedPosition = new Position(0.0, 0.0);
         positionMarker = new ImageView(this);
         positionMarker.setTag(currentPosition);
         positionMarker.setImageResource(R.drawable.dot);
@@ -338,19 +348,18 @@ public class MapViewActivity extends TileViewActivity {
     }
 
     private void step() {
+        Log.d("StepDetector", "one step");
         double x = currentPosition.getX();
         double y=  currentPosition.getY();
-        x = x + PX_PER_STEP * Math.cos(azimuth);
-        y = y + PX_PER_STEP * Math.sin(azimuth);
+        x = x + PX_PER_STEP * Math.cos(Math.toRadians(azimuth));
+        y = y + PX_PER_STEP * Math.sin(Math.toRadians(azimuth));
         changePosition(x, y);
     }
 
     private void setDirection(float azimuth) {
-
-        if (azimuth/this.azimuth < 0.99) {
-            this.azimuth = azimuth;
-            Log.d("Compass", "Azimuth = " + this.azimuth);
-        }
+        azimuth = (azimuth + 140) % 360;
+        this.azimuth = azimuth;
+//        Log.d("Compass", "Azimuth = " + this.azimuth);
     }
 
     private void changePosition(double x, double y) {
@@ -358,9 +367,25 @@ public class MapViewActivity extends TileViewActivity {
                 + " from " + currentPosition.getX() + " " + currentPosition.getY()
                 + " to " + x + " " + y);
         currentPosition.move(x, y);
-        Pair<Double, Double> pair = translatePoint(x, y);
-        getTileView().moveMarker(positionMarker, pair.first, pair.second);
+//        Pair<Double, Double> pair = translatePoint(x, y);
+        getTileView().moveMarker(positionMarker, x, y);
         getTileView().moveToMarker(positionMarker, true);
+    }
+
+    private void calibratePosition() {
+        Log.d("CalibratePosition", "Calibrate");
+        double x = currentPosition.getX(), y = currentPosition.getY();
+        double xdiff = Math.min(x, fingerprintedPosition.getX()) /
+                Math.max(x, fingerprintedPosition.getX());
+        double ydiff = Math.min(y, fingerprintedPosition.getY()) /
+                Math.max(y, fingerprintedPosition.getY());
+        if (xdiff > 0.9) {
+            x = (fingerprintedPosition.getX() + x) / 2;
+        }
+        if (ydiff > 0.9) {
+            y = (fingerprintedPosition.getY() + y) / 2;
+        }
+        changePosition(x, y);
     }
 
     private Pair<Double, Double> translatePoint(double x, double y) {
