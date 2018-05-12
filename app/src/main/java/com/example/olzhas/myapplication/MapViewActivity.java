@@ -13,7 +13,6 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
@@ -30,42 +29,55 @@ import com.qozix.tileview.hotspots.HotSpot;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.DoubleBinaryOperator;
 
 public class MapViewActivity extends TileViewActivity {
     private static int LEFT = 0;
-    private static int TOP = 2783;
-    private static int RIGHT = 5464;
-    private static int BOTTOM = 0;
+    private static int TOP = 0;
+    private static int RIGHT = 5208;
+    private static int BOTTOM = 2527;
+
+    private static int WIDTH = 5208;
+    private static int HEIGHT = 2527;
 
     private final static double PX_PER_METER = 1314.69/50.1;
-    private final static int KNN_VALUE = 6;
+    private final static double PX_PER_STEP = 0.8 * PX_PER_METER;
+    private final static int KNN_VALUE = 4;
 
     MapApplication mapApplication;
     WifiManager wifiManager;
     private BroadcastReceiver wifiReceiver;
     List<ScanResult> scanResults;
-    Pair<Double, Double> currentPosition;
+    Position currentPosition;
     ImageView positionMarker;
     SensorManager SM;
     boolean isTracking = false;
-    private LinkedList<float[]> data = new LinkedList<>();
 
-    private float[] mGravity = new float[3];
-    private float[] mGeomagnetic = new float[3];
-    private float[] R_ = new float[9];
-    private float[] I_ = new float[9];
     private float azimuth;
 
     private SensorEventListener SEL = new SensorEventListener() {
+
+        private AccelerometerFilter filter = new AccelerometerFilter();
+        private static final float STEP_THRESHOLD = 50f;
+        private static final int STEP_DELAY_NS = 250000000;
+        private long lastStepTimeNs = 0;
+        private float prevEstimatedSpeed = 0;
+
+
+        private float[] mGravity = new float[3];
+        private float[] mGeomagnetic = new float[3];
+        private float[] R_ = new float[9];
+        private float[] I_ = new float[9];
+
         @Override
         public void onSensorChanged(SensorEvent event) {
             final float alpha = 0.97f;
             synchronized (this) {
                 switch (event.sensor.getType()) {
                     case Sensor.TYPE_ACCELEROMETER:
+                        updateSpeed(event.timestamp, new float[]{event.values[0], event.values[1], event.values[2]});
                         mGravity[0] = alpha * mGravity[0] + (1 - alpha) * event.values[0];
                         mGravity[1] = alpha * mGravity[1] + (1 - alpha) * event.values[1];
                         mGravity[2] = alpha * mGravity[2] + (1 - alpha) * event.values[2];
@@ -80,16 +92,26 @@ public class MapViewActivity extends TileViewActivity {
                 if (success) {
                     float orientation[] = new float[3];
                     SensorManager.getOrientation(R_, orientation);
-                    azimuth = (float) Math.toDegrees(orientation[0]);
-                    azimuth = azimuth  % 360;
-                    Log.d("Compass", "Azimuth = " + azimuth);
+                    setDirection((float) Math.toDegrees(orientation[0]) % 360);
                 }
+
             }
         }
 
         @Override
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
 
+        void updateSpeed(long time, float[] currentAccel) {
+
+            float estimatedSpeed =  filter.estimateVelocity(currentAccel);
+
+            if (estimatedSpeed > STEP_THRESHOLD && prevEstimatedSpeed <= STEP_THRESHOLD
+                    && (time - lastStepTimeNs > STEP_DELAY_NS)) {
+                step();
+                lastStepTimeNs = time;
+            }
+            prevEstimatedSpeed = estimatedSpeed;
         }
     };
 
@@ -99,8 +121,8 @@ public class MapViewActivity extends TileViewActivity {
         public void run() {
             if (isTracking) {
                 wifiManager.startScan();
-                currentPosition = calculateKNNCoordinate(calculateMeasurements(scanResults), KNN_VALUE);
-                getTileView().moveMarker(positionMarker, currentPosition.first, currentPosition.second);
+                Pair<Double, Double> nextCoordinate = calculateKNNCoordinate(calculateMeasurements(scanResults), KNN_VALUE);
+                changePosition(nextCoordinate.first, nextCoordinate.second);
                 Log.d("trackingThread", " Coordinate " + currentPosition.toString());
             }
             //This line will continuously call this Runnable with 3000 milliseconds gap
@@ -148,15 +170,15 @@ public class MapViewActivity extends TileViewActivity {
 
         // TileView
         final TileView tileView = getTileView();
-        tileView.setSize(RIGHT, TOP);
+        tileView.setSize(WIDTH, HEIGHT);
         tileView.addDetailLevel(1.0f, "tiles/map-%d_%d.png");
         tileView.defineBounds(LEFT, TOP, RIGHT, BOTTOM);
-        tileView.setScale(0.5f);
         tileView.setViewportPadding(256);
         tileView.setShouldRenderWhilePanning(true);
+        tileView.setMarkerAnchorPoints(-0.5f, -0.5f);
         HotSpot hotSpot = new HotSpot();
         hotSpot.setTag(this);
-        hotSpot.set(new Rect(LEFT, BOTTOM, RIGHT, TOP));
+        hotSpot.set(new Rect(LEFT, TOP, RIGHT, BOTTOM));
         hotSpot.setHotSpotTapListener((hotspot, x, y) -> {
             Activity activity = (Activity) hotspot.getTag();
             Log.d("MapViewActivity", "(onHotSpotTap) coordinates " + x + " " + y);
@@ -175,6 +197,9 @@ public class MapViewActivity extends TileViewActivity {
                         Log.d ("onMenuClick", "menu_track");
                         startTrackMode();
                         break;
+                    case R.id.menu_position:
+                        Log.d("onMenuClick", "menu_position");
+                        changePosition(x, y);
                 }
                 return true;
             });
@@ -184,12 +209,13 @@ public class MapViewActivity extends TileViewActivity {
         tileView.addHotSpot(hotSpot);
 
         // position init
-        currentPosition = new Pair<>(0.0, 0.0);
+        currentPosition = new Position(0.0, 0.0);
         positionMarker = new ImageView(this);
         positionMarker.setTag(currentPosition);
-        positionMarker.setImageResource(R.drawable.map_marker_normal);
-        tileView.addMarker(positionMarker, currentPosition.first, currentPosition.second, null, null);
-
+        positionMarker.setImageResource(R.drawable.dot);
+//        ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(60, 60);
+//        positionMarker.setLayoutParams(params);
+        tileView.addMarker(positionMarker, currentPosition.getX(), currentPosition.getY(), null, null);
         registerForContextMenu(getTileView());
     }
 
@@ -309,5 +335,37 @@ public class MapViewActivity extends TileViewActivity {
             // skip
         }
         return accessPoints;
+    }
+
+    private void step() {
+        double x = currentPosition.getX();
+        double y=  currentPosition.getY();
+        x = x + PX_PER_STEP * Math.cos(azimuth);
+        y = y + PX_PER_STEP * Math.sin(azimuth);
+        changePosition(x, y);
+    }
+
+    private void setDirection(float azimuth) {
+
+        if (azimuth/this.azimuth < 0.99) {
+            this.azimuth = azimuth;
+            Log.d("Compass", "Azimuth = " + this.azimuth);
+        }
+    }
+
+    private void changePosition(double x, double y) {
+        Log.d("ChangePosition", "Moved"
+                + " from " + currentPosition.getX() + " " + currentPosition.getY()
+                + " to " + x + " " + y);
+        currentPosition.move(x, y);
+        Pair<Double, Double> pair = translatePoint(x, y);
+        getTileView().moveMarker(positionMarker, pair.first, pair.second);
+        getTileView().moveToMarker(positionMarker, true);
+    }
+
+    private Pair<Double, Double> translatePoint(double x, double y) {
+        x = getTileView().getCoordinateTranslater().translateAbsoluteToRelativeX((float) x);
+        y = getTileView().getCoordinateTranslater().translateAbsoluteToRelativeY((float) y);
+        return new Pair<>(x, y);
     }
 }

@@ -8,4 +8,9 @@
         android:id="@+id/menu_track"
         android:title="Tracking mode"
         android:visible="true"/>
+    <item
+        android:id="@+id/menu_position"
+        android:title="Custom position"
+        android:visible="true"
+        />
 </menu>
